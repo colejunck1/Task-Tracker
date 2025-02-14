@@ -1,31 +1,33 @@
-import { useState, useEffect } from "react";
-import { supabase } from "./supabaseClient";
+// src/App.jsx
+import { useState, useEffect } from 'react';
+import { supabase } from './supabaseClient';
+import Login from './login';
+import Dashboard from './Dashboard';
 
 function App() {
-    const [hulls, setHulls] = useState([]);
+  const [session, setSession] = useState(null);
 
-    useEffect(() => {
-        fetchHulls();
-    }, []);
+  useEffect(() => {
+    // Get the current session using the new getSession() API (for Supabase v2)
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+    });
 
-    async function fetchHulls() {
-        const { data, error } = await supabase.from("production_schedule").select("hull_number, slot_number, scheduled_date");
-        if (error) console.log("Error fetching hulls:", error);
-        else setHulls(data);
-    }
+    // Listen for auth state changes
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
 
-    return (
-        <div>
-            <h1>Production Schedule</h1>
-            <ul>
-                {hulls.map((hull) => (
-                    <li key={hull.hull_number}>
-                        Slot {hull.slot_number}: Hull {hull.hull_number} - {new Date(hull.scheduled_date).toDateString()}
-                    </li>
-                ))}
-            </ul>
-        </div>
-    );
+    return () => subscription.unsubscribe();
+  }, []);
+
+  if (!session) {
+    return <Login />;
+  }
+
+  return <Dashboard />;
 }
 
 export default App;
