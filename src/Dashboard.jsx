@@ -4,7 +4,11 @@ import { supabase } from './supabaseClient';
 import UploadBoatOrders from './UploadBoatOrders';
 import BoatOrders from './BoatOrders';
 import AllOptions from './AllOptions';
-import BoatOrderHeaders from './BoatOrderHeaders'; // New component
+import BoatOrderHeaders from './BoatOrderHeaders';
+import DoNotShowOptions from './DoNotShowOptions';
+import TaskData from './TaskData'; // Admin Task Data
+import Stations from './Stations'; // Admin Stations sub-tab
+import Tasks from './Tasks'; // Main Tasks tab for employees
 
 function Dashboard() {
   const [activeMainTab, setActiveMainTab] = useState('dashboard');
@@ -27,11 +31,18 @@ function Dashboard() {
     { key: 'stations', label: 'Stations' },
     { key: 'uploadBoatOrders', label: 'Upload Boat Orders' },
     { key: 'allOptions', label: 'All Options' },
-    { key: 'boatOrderHeaders', label: 'Boat Order Headers' } // New sub-tab
+    { key: 'boatOrderHeaders', label: 'Boat Order Headers' },
+    { key: 'doNotShow', label: 'Do Not Show' }
   ];
 
   const renderContent = () => {
     if (activeMainTab === 'admin') {
+      if (activeAdminSubTab === 'taskData') {
+        return <TaskData />;
+      }
+      if (activeAdminSubTab === 'stations') {
+        return <Stations />;
+      }
       if (activeAdminSubTab === 'uploadBoatOrders') {
         return <UploadBoatOrders />;
       }
@@ -40,6 +51,9 @@ function Dashboard() {
       }
       if (activeAdminSubTab === 'boatOrderHeaders') {
         return <BoatOrderHeaders />;
+      }
+      if (activeAdminSubTab === 'doNotShow') {
+        return <DoNotShowOptions />;
       }
       const adminTab = adminSubTabs.find((tab) => tab.key === activeAdminSubTab);
       return (
@@ -50,6 +64,8 @@ function Dashboard() {
       );
     } else if (activeMainTab === 'boatOrders') {
       return <BoatOrders />;
+    } else if (activeMainTab === 'tasks') {
+      return <Tasks />;
     } else {
       const currentTab = mainTabs.find((tab) => tab.key === activeMainTab);
       return (

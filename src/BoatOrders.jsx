@@ -8,9 +8,28 @@ function BoatOrders() {
   const [errorMsg, setErrorMsg] = useState('');
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [orderOptions, setOrderOptions] = useState([]);
+  const [orderHeaders, setOrderHeaders] = useState([]); // Not used for matching here
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Fetch boat orders from the database
+  // Define station arrays for the modal header
+  const leftStations = [
+    "LAM Grid",
+    "LAM Hull/Deck",
+    "T&G Grid",
+    "T&G Hull/Deck",
+    "P&D Hull/Deck",
+    "Open Hull/Deck 1"
+  ];
+  const rightStations = [
+    "Open Hull/Deck 2",
+    "Final 1",
+    "Final 2",
+    "Final 3",
+    "Commissioning",
+    "Shipment"
+  ];
+
+  // Fetch boat orders from Supabase
   const fetchOrders = async () => {
     setLoading(true);
     const { data, error } = await supabase
@@ -31,39 +50,66 @@ function BoatOrders() {
     fetchOrders();
   }, []);
 
-  // Filter orders based on the search term
+  // Filter orders based on search term
   const filteredOrders = orders.filter((order) => {
-    // Convert fields to strings and lowercase for matching
     const hullStr = order.hull_number.toString().toLowerCase();
     const revisionStr = order.revision_date.toString().toLowerCase();
     const fileNameStr = order.file_name ? order.file_name.toLowerCase() : '';
+    const modelStr = order.hull_number.toString().slice(0, 2).toLowerCase();
     const term = searchTerm.toLowerCase();
-    return hullStr.includes(term) || revisionStr.includes(term) || fileNameStr.includes(term);
+    return (
+      hullStr.includes(term) ||
+      revisionStr.includes(term) ||
+      fileNameStr.includes(term) ||
+      modelStr.includes(term)
+    );
   });
 
-  // Open modal and fetch options for the selected order
+  // When an order is selected, fetch its options and headers (if needed)
   const openModal = async (order) => {
+    console.log("Opening modal for order id:", order.id);
     setSelectedOrder(order);
-    const { data, error } = await supabase
+
+    // Fetch options for this order
+    const { data: optionsData, error: optionsError } = await supabase
       .from('boat_order_options')
       .select('*')
       .eq('boat_order_id', order.id);
-    if (error) {
-      console.error('Error fetching order options:', error);
+    if (optionsError) {
+      console.error('Error fetching order options:', optionsError);
       setOrderOptions([]);
     } else {
-      setOrderOptions(data);
+      console.log("Fetched order options:", optionsData);
+      setOrderOptions(optionsData);
+    }
+
+    // Derive model from hull number (first two digits)
+    const modelCode = order.hull_number.toString().slice(0, 2);
+    const modelId = parseInt(modelCode, 10);
+    console.log("Derived modelId:", modelId);
+
+    // Fetch headers for this model from boat_order_headers (if needed)
+    const { data: headersData, error: headersError } = await supabase
+      .from('boat_order_headers')
+      .select('*')
+      .eq('model_id', modelId);
+    if (headersError) {
+      console.error('Error fetching headers:', headersError);
+      setOrderHeaders([]);
+    } else {
+      console.log("Fetched headers:", headersData);
+      setOrderHeaders(headersData);
     }
   };
 
   const closeModal = () => {
     setSelectedOrder(null);
     setOrderOptions([]);
+    setOrderHeaders([]);
   };
 
-  // Handler for "View PDF" button in modal header
+  // Handler for "View PDF" button
   const handleViewPDF = (order) => {
-    // Use the stored file_name to retrieve the public URL
     const { data } = supabase.storage
       .from('boat-orders')
       .getPublicUrl(order.file_name);
@@ -90,7 +136,7 @@ function BoatOrders() {
           }}
         />
       </div>
-
+      
       {errorMsg && <p style={{ color: 'red' }}>{errorMsg}</p>}
       {loading ? (
         <p>Loading orders...</p>
@@ -102,23 +148,28 @@ function BoatOrders() {
             <tr style={{ borderBottom: '1px solid #ddd' }}>
               <th style={{ textAlign: 'left', padding: '0.5rem' }}>Hull #</th>
               <th style={{ textAlign: 'left', padding: '0.5rem' }}>Revision Date</th>
+              <th style={{ textAlign: 'left', padding: '0.5rem' }}>Model</th>
             </tr>
           </thead>
           <tbody>
-            {filteredOrders.map((order) => (
-              <tr
-                key={order.id}
-                style={{ borderBottom: '1px solid #ddd', cursor: 'pointer' }}
-                onClick={() => openModal(order)}
-              >
-                <td style={{ padding: '0.5rem' }}>{order.hull_number}</td>
-                <td style={{ padding: '0.5rem' }}>{order.revision_date}</td>
-              </tr>
-            ))}
+            {filteredOrders.map((order) => {
+              const model = order.hull_number.toString().slice(0, 2);
+              return (
+                <tr
+                  key={order.id}
+                  style={{ borderBottom: '1px solid #ddd', cursor: 'pointer' }}
+                  onClick={() => openModal(order)}
+                >
+                  <td style={{ padding: '0.5rem' }}>{order.hull_number}</td>
+                  <td style={{ padding: '0.5rem' }}>{order.revision_date}</td>
+                  <td style={{ padding: '0.5rem' }}>{model}</td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       )}
-
+      
       {selectedOrder && (
         <div
           className="modal-overlay"
@@ -147,7 +198,7 @@ function BoatOrders() {
               flexDirection: 'column',
             }}
           >
-            {/* Fixed Header */}
+            {/* Fixed Header with Stations */}
             <div
               className="modal-header"
               style={{
@@ -175,9 +226,62 @@ function BoatOrders() {
               <p>
                 <strong>Revision Date:</strong> {selectedOrder.revision_date}
               </p>
-              <h4>Options:</h4>
+              {/* Stations Section as 4 columns */}
+              <table
+                style={{
+                  width: '100%',
+                  borderCollapse: 'collapse',
+                  marginTop: '1rem',
+                  marginBottom: '1rem'
+                }}
+              >
+                <tbody>
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <tr key={i}>
+                      <td
+                        style={{
+                          width: '20ch',
+                          textAlign: 'right',
+                          padding: '0.25rem',
+                          color: '#555'
+                        }}
+                      >
+                        {leftStations[i]}:
+                      </td>
+                      <td
+                        style={{
+                          textAlign: 'left',
+                          padding: '0.25rem',
+                          color: '#555'
+                        }}
+                      >
+                        {/* Placeholder for date */}
+                      </td>
+                      <td
+                        style={{
+                          width: '20ch',
+                          textAlign: 'right',
+                          padding: '0.25rem',
+                          color: '#555'
+                        }}
+                      >
+                        {rightStations[i]}:
+                      </td>
+                      <td
+                        style={{
+                          textAlign: 'left',
+                          padding: '0.25rem',
+                          color: '#555'
+                        }}
+                      >
+                        {/* Placeholder for date */}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-
+            
             {/* Scrollable Content */}
             <div
               className="modal-content"
@@ -200,7 +304,16 @@ function BoatOrders() {
                   </thead>
                   <tbody>
                     {orderOptions.map((option) => (
-                      <tr key={option.id} style={{ borderBottom: '1px solid #ddd' }}>
+                      <tr
+                        key={option.id}
+                        style={{
+                          borderBottom: '1px solid #ddd',
+                          backgroundColor:
+                            option.is_header === true || option.is_header === 'true'
+                              ? '#f0f0f0'
+                              : 'transparent',
+                        }}
+                      >
                         <td style={{ padding: '0.5rem' }}>{option.option_line}</td>
                       </tr>
                     ))}
@@ -208,7 +321,7 @@ function BoatOrders() {
                 </table>
               )}
             </div>
-
+            
             {/* Fixed Footer */}
             <div
               className="modal-footer"
