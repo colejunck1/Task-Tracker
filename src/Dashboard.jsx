@@ -19,6 +19,8 @@ function Dashboard() {
     { key: 'boatOrders', label: 'Boat Orders' },
     { key: 'tasks', label: 'Tasks' },
     { key: 'schedule', label: 'Schedule' },
+    { key: 'purchaseRequests', label: 'Purchase Requests' },
+    { key: 'concerns', label: 'Concerns' },
     { key: 'admin', label: 'Admin' },
   ];
 
@@ -66,6 +68,20 @@ function Dashboard() {
       return <BoatOrders />;
     } else if (activeMainTab === 'tasks') {
       return <Tasks />;
+    } else if (activeMainTab === 'purchaseRequests') {
+      return (
+        <div>
+          <h2>Purchase Requests</h2>
+          <p>Content for Purchase Requests page (to be built).</p>
+        </div>
+      );
+    } else if (activeMainTab === 'concerns') {
+      return (
+        <div>
+          <h2>Concerns</h2>
+          <p>Content for Concerns page (to be built).</p>
+        </div>
+      );
     } else {
       const currentTab = mainTabs.find((tab) => tab.key === activeMainTab);
       return (
