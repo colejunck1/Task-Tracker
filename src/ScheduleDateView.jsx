@@ -14,6 +14,16 @@ function ScheduleDateView() {
   const [showAutoScheduleModal, setShowAutoScheduleModal] = useState(false);
   const [currentScheduleRow, setCurrentScheduleRow] = useState(null);
 
+  // Define which columns are date fields.
+  const dateColumns = [
+    'lam_grid', 'lam_hull', 'lam_deck',
+    'trimandgrind_grid', 'trimandgrind_hull', 'trimandgrind_deck',
+    'patchanddetail_hull', 'patchanddetail_deck',
+    'open_hull_1', 'open_deck_1', 'open_hull_2', 'open_deck_2',
+    'final_1', 'final_2', 'final_3',
+    'commissioning', 'shipment'
+  ];
+
   // Define columns (excluding the auto-schedule column)
   const columns = [
     { key: 'slot_number', label: 'Slot #', width: '80px' },
@@ -76,7 +86,10 @@ function ScheduleDateView() {
 
   const handleDoubleClick = (row, columnKey) => {
     setEditingCell({ rowId: row.id, columnKey });
-    if (columnKey === 'boat_model') {
+    if (dateColumns.includes(columnKey)) {
+      const dateVal = row[columnKey] ? row[columnKey].split('T')[0] : '';
+      setEditingValue(dateVal);
+    } else if (columnKey === 'boat_model') {
       setEditingValue(row[columnKey] ? row[columnKey].toString() : '');
     } else {
       setEditingValue(row[columnKey] ? row[columnKey] : '');
@@ -113,8 +126,33 @@ function ScheduleDateView() {
     }
   };
 
+  // Format date to "mmm. dd" (e.g., "Jan. 05")
+  const formatDateDisplay = (dateStr) => {
+    if (!dateStr) return '-';
+    const dateObj = new Date(dateStr);
+    const options = { month: 'short', day: 'numeric' };
+    let formatted = dateObj.toLocaleDateString('en-US', options);
+    if (!formatted.includes('.')) {
+      formatted = formatted.replace(/^(\w{3})\s/, '$1. ');
+    }
+    return formatted;
+  };
+
   const renderCell = (row, columnKey) => {
     if (editingCell && editingCell.rowId === row.id && editingCell.columnKey === columnKey) {
+      if (dateColumns.includes(columnKey)) {
+        return (
+          <input
+            type="date"
+            value={editingValue || ''}
+            onChange={(e) => setEditingValue(e.target.value)}
+            onBlur={saveEdit}
+            onKeyDown={handleKeyDown}
+            autoFocus
+            style={{ width: '100%', padding: '0.25rem' }}
+          />
+        );
+      }
       if (columnKey === 'boat_model') {
         return (
           <select
@@ -133,19 +171,18 @@ function ScheduleDateView() {
             ))}
           </select>
         );
-      } else {
-        return (
-          <input
-            type="text"
-            value={editingValue}
-            onChange={(e) => setEditingValue(e.target.value)}
-            onBlur={saveEdit}
-            onKeyDown={handleKeyDown}
-            autoFocus
-            style={{ width: '100%', padding: '0.25rem' }}
-          />
-        );
       }
+      return (
+        <input
+          type="text"
+          value={editingValue}
+          onChange={(e) => setEditingValue(e.target.value)}
+          onBlur={saveEdit}
+          onKeyDown={handleKeyDown}
+          autoFocus
+          style={{ width: '100%', padding: '0.25rem' }}
+        />
+      );
     }
     if (columnKey === 'boat_model') {
       const modelName = modelsMapping[row[columnKey]] || '-';
@@ -156,6 +193,13 @@ function ScheduleDateView() {
       );
     }
     const cellValue = row[columnKey];
+    if (dateColumns.includes(columnKey)) {
+      return (
+        <span onDoubleClick={() => handleDoubleClick(row, columnKey)} style={{ whiteSpace: 'nowrap' }}>
+          {cellValue ? formatDateDisplay(cellValue) : '-'}
+        </span>
+      );
+    }
     return (
       <span onDoubleClick={() => handleDoubleClick(row, columnKey)}>
         {cellValue !== null && cellValue !== undefined && cellValue !== '' ? cellValue : '-'}
@@ -163,7 +207,6 @@ function ScheduleDateView() {
     );
   };
 
-  // Handler for Auto-Schedule button
   const handleAutoSchedule = (row) => {
     setCurrentScheduleRow(row);
     setShowAutoScheduleModal(true);
@@ -199,7 +242,8 @@ function ScheduleDateView() {
                     style={{
                       padding: '0.5rem',
                       textAlign: 'left',
-                      width: col.width ? col.width : 'auto'
+                      width: col.width ? col.width : 'auto',
+                      whiteSpace: dateColumns.includes(col.key) ? 'nowrap' : 'normal'
                     }}
                   >
                     {col.label}
@@ -239,7 +283,8 @@ function ScheduleDateView() {
                       key={col.key}
                       style={{
                         padding: '0.5rem',
-                        width: col.width ? col.width : 'auto'
+                        width: col.width ? col.width : 'auto',
+                        whiteSpace: dateColumns.includes(col.key) ? 'nowrap' : 'normal'
                       }}
                     >
                       {renderCell(row, col.key)}

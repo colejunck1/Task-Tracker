@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from './supabaseClient';
 import ManageStation from './ManageStation';
 import BulkUploadStations from './BulkUploadStations';
+import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 
 function Stations() {
   const [stations, setStations] = useState([]);
@@ -17,7 +18,7 @@ function Stations() {
     const { data, error } = await supabase
       .from('stations')
       .select('*')
-      .order('name', { ascending: true });
+      .order('station_sequence', { ascending: true });
     if (error) {
       console.error("Error fetching stations:", error);
       setErrorMsg(error.message);
@@ -32,10 +33,27 @@ function Stations() {
     fetchStations();
   }, []);
 
+  // Drag and drop handler
+  const handleOnDragEnd = (result) => {
+    if (!result.destination) return;
+    const items = Array.from(stations);
+    const [reorderedItem] = items.splice(result.source.index, 1);
+    items.splice(result.destination.index, 0, reorderedItem);
+    setStations(items);
+    // Optionally: update the new order in the database.
+  };
+
+  // Row hover styling
+  const handleMouseOver = (e) => {
+    e.currentTarget.style.backgroundColor = '#f5f5f5';
+  };
+
+  const handleMouseOut = (e) => {
+    e.currentTarget.style.backgroundColor = 'transparent';
+  };
+
   return (
     <div style={{ padding: '1rem' }}>
-      <h2>Stations</h2>
-      {errorMsg && <p style={{ color: 'red' }}>{errorMsg}</p>}
       <div style={{ marginBottom: '1rem' }}>
         <button onClick={() => setShowAddModal(true)}>+ Add New Station</button>
         <button onClick={() => setShowBulkUpload(!showBulkUpload)} style={{ marginLeft: '1rem' }}>
@@ -48,25 +66,69 @@ function Stations() {
       ) : stations.length === 0 ? (
         <p>No stations found.</p>
       ) : (
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr style={{ borderBottom: '1px solid #ddd' }}>
-              <th style={{ textAlign: 'left', padding: '0.5rem' }}>Station Name</th>
-              <th style={{ textAlign: 'left', padding: '0.5rem' }}>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {stations.map(station => (
-              <tr key={station.id} style={{ borderBottom: '1px solid #ddd' }}>
-                <td style={{ padding: '0.5rem' }}>{station.name}</td>
-                <td style={{ padding: '0.5rem' }}>
-                  <button onClick={() => setSelectedStation(station)}>Edit</button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div
+          style={{
+            backgroundColor: '#fff',
+            border: '1px solid #ddd',
+            borderRadius: '4px',
+            maxHeight: '70vh',
+            overflowY: 'auto'
+          }}
+        >
+          <DragDropContext onDragEnd={handleOnDragEnd}>
+            <Droppable droppableId="stations">
+              {(provided) => (
+                <table
+                  style={{ width: '100%', borderCollapse: 'collapse' }}
+                  ref={provided.innerRef}
+                  {...provided.droppableProps}
+                >
+                  <thead style={{ backgroundColor: '#fff', position: 'sticky', top: 0, zIndex: 1 }}>
+                    <tr style={{ borderBottom: '1px solid #ddd' }}>
+                      <th style={{ padding: '0.5rem', textAlign: 'left', width: '40px' }}>
+                        Station Sequence #
+                      </th>
+                      <th style={{ padding: '0.5rem', textAlign: 'left' }}>Station Name</th>
+                      <th style={{ padding: '0.5rem', textAlign: 'left' }}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {stations.map((station, index) => (
+                      <Draggable key={station.id} draggableId={station.id.toString()} index={index}>
+                        {(provided) => (
+                          <tr
+                            ref={provided.innerRef}
+                            {...provided.draggableProps}
+                            {...provided.dragHandleProps}
+                            onMouseOver={handleMouseOver}
+                            onMouseOut={handleMouseOut}
+                            onDoubleClick={() => setSelectedStation(station)}
+                            style={{
+                              ...provided.draggableProps.style,
+                              borderBottom: '1px solid #ddd',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            <td style={{ padding: '0.5rem', width: '40px' }}>
+                              {station.station_sequence}
+                            </td>
+                            <td style={{ padding: '0.5rem' }}>{station.name}</td>
+                            <td style={{ padding: '0.5rem' }}>
+                              <button onClick={() => setSelectedStation(station)}>Edit</button>
+                            </td>
+                          </tr>
+                        )}
+                      </Draggable>
+                    ))}
+                    {provided.placeholder}
+                  </tbody>
+                </table>
+              )}
+            </Droppable>
+          </DragDropContext>
+        </div>
       )}
+      {errorMsg && <p style={{ color: 'red' }}>{errorMsg}</p>}
       {showAddModal && (
         <ManageStation
           station={null}
