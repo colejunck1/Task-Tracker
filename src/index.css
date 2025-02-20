@@ -97,3 +97,38 @@ body {
     width: 100%;
   }
 }
+/* Add this to your global CSS (e.g., index.css) */
+
+@media print {
+  /* Hide the sidebar and header when printing */
+  .dashboard-sidebar,
+  .dashboard-header,
+  .profile-dropdown,
+  .header-actions {
+    display: none !important;
+  }
+
+  /* Make main content take full width */
+  .dashboard-content {
+    margin: 0 !important;
+    width: 100% !important;
+  }
+
+  /* Remove any fixed height and overflow from the table container so that all rows print */
+  .print-table-container {
+    max-height: none !important;
+    overflow: visible !important;
+    border: none !important;
+  }
+
+  /* Optionally, adjust table styling for print */
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+  }
+  table th,
+  table td {
+    border: 1px solid #000 !important;
+    padding: 0.5rem !important;
+  }
+}
